@@ -1,0 +1,18 @@
+import { chromium } from 'playwright';
+import crypto from 'node:crypto';
+const B = 'http://127.0.0.1:35014';
+const b32 = (s) => { const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = ''; for (const ch of s.replace(/=+$/, '')) bits += a.indexOf(ch).toString(2).padStart(5, '0'); const out = []; for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2)); return Buffer.from(out); };
+const totp = (secret) => { const c = Buffer.alloc(8); c.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000))); const h = crypto.createHmac('sha1', b32(secret)).update(c).digest(); const o = h[19] & 15; return String(((h.readUInt32BE(o) & 0x7fffffff) % 1e6)).padStart(6, '0'); };
+const b = await chromium.launch();
+const c = await b.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'dark' });
+const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e))); p.on('console', m => m.type() === 'error' && errs.push(m.text()));
+await p.request.post(B + '/auth/login', { data: { password: 'rsi-temp-test' } });
+const setup = await (await p.request.get(B + '/auth/totp/setup')).json();
+await p.request.post(B + '/auth/totp/verify', { data: { code: totp(setup.secret) } });
+const shot = async (hash, name, wait, full = false) => { await p.goto(`${B}/${hash}`); await p.waitForSelector(wait); await p.waitForTimeout(700); await p.screenshot({ path: `out/${name}.png`, fullPage: full }); };
+await shot('#/specs', 'd3_specs', 'text=새 Spec');
+await shot('#/specs/astro-tonight-filter-speed', 'd3_spec_detail', 'text=이 버전으로 실행', true);
+await shot('#/specs/astro-tonight-filter-speed/edit/2', 'd3_spec_edit', 'text=개선 대상');
+await shot(`#/design/${process.env.SID}`, 'd3_design', 'text=Spec 초안');
+await shot('#/runs/20261025-122534', 'd3_dryrun', 'text=잡음 분석');
+console.log('errors', errs); await b.close();

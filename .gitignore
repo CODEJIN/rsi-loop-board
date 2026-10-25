@@ -1,0 +1,24 @@
+# 비밀값·운영 데이터
+.env
+dashboard/data/
+**/.bench_password_hash
+
+# 런 기록·캐시·로그 (실행하면 생김)
+phase0/runs/
+phase0/state/
+*.log
+
+# 대상 저장소 clone, 평가용 대용량 픽스처
+workspaces/
+phase0/evals/*/.fixtures/
+
+# 의존성·빌드 산출물
+node_modules/
+dist/
+bench/out/
+__pycache__/
+*.pyc
+*.bak
+
+# 기타
+Temp.png

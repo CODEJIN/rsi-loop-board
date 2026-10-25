@@ -1,0 +1,27 @@
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+const BASE='http://127.0.0.1:35103';
+const b=await chromium.launch(); const c=await b.newContext({viewport:{width:1440,height:900}});
+await c.route('**/*', r => { const u=new URL(r.request().url()); return (u.host==='127.0.0.1:35103' && !u.pathname.startsWith('/api/sky-thumbnail')) ? r.continue() : r.abort(); });
+const p=await c.newPage(); await p.clock.setFixedTime(new Date('2026-11-15T21:00:00+09:00'));
+await p.request.post(BASE+'/auth/login',{data:{password:'rsi-bench'}});
+await p.goto(BASE,{waitUntil:'networkidle'}); await p.waitForTimeout(6000);
+await p.getByRole('button',{name:"🔭 Tonight's Setup"}).click();
+await p.getByRole('button',{name:'Seestar S30 Pro Telephoto Lens',exact:true}).click();
+await p.getByRole('button',{name:'Seestar S30 Pro Telephoto Camera',exact:true}).click();
+await p.waitForTimeout(6000);
+const cdp=await c.newCDPSession(p); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval',{interval:200}); await cdp.send('Profiler.start');
+const t = await p.evaluate(()=>{ const t0=performance.now(); Array.from(document.querySelectorAll('svg g')).find(g=>g.querySelector(':scope > text')?.textContent.trim()==='N').dispatchEvent(new MouseEvent('click',{bubbles:true})); return performance.now()-t0; });
+console.log('sync click handler ms', Math.round(t));
+await p.waitForTimeout(3000);
+const {profile}=await cdp.send('Profiler.stop');
+fs.writeFileSync('out/n_toggle.cpuprofile', JSON.stringify(profile));
+const byId=new Map(profile.nodes.map(n=>[n.id,n])); const dt=(profile.endTime-profile.startTime)/profile.samples.length/1000;
+const self=new Map(); const parent=new Map(); for(const n of profile.nodes) for(const ch of (n.children||[])) parent.set(ch,n.id);
+const total=new Map();
+const counts=new Map(); for(const s of profile.samples) counts.set(s,(counts.get(s)||0)+1);
+for(const [id,cnt] of counts){ const n=byId.get(id); const k=`${n.callFrame.functionName||'(anon)'} @${n.callFrame.url.split('/').pop()}:${n.callFrame.lineNumber}`; self.set(k,(self.get(k)||0)+cnt*dt);
+  const seen=new Set(); let cur=id; while(cur!=null){ const m=byId.get(cur); const kk=`${m.callFrame.functionName||'(anon)'} @${m.callFrame.url.split('/').pop()}:${m.callFrame.lineNumber}`; if(!seen.has(kk)){seen.add(kk); total.set(kk,(total.get(kk)||0)+cnt*dt);} cur=parent.get(cur);} }
+const top=(m,n)=>[...m].sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k,v])=>`${v.toFixed(0).padStart(6)}ms  ${k}`).join('\n');
+console.log('--- self time top'); console.log(top(self,18)); console.log('--- total time top'); console.log(top(total,30));
+await b.close();

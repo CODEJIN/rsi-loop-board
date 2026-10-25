@@ -1,0 +1,20 @@
+{
+  "name": "RSI Loop",
+  "short_name": "RSI Loop",
+  "description": "RSI Loop 대시보드 — 루프 관측·제어·승인",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "ko",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "승인함", "url": "/#/approvals", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "사용량", "url": "/#/usage", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

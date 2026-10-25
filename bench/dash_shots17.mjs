@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+import crypto from 'node:crypto';
+const B = 'http://127.0.0.1:35014';
+const b32 = (s) => { const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = ''; for (const ch of s.replace(/=+$/, '')) bits += a.indexOf(ch).toString(2).padStart(5, '0'); const out = []; for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2)); return Buffer.from(out); };
+const totp = (secret) => { const c = Buffer.alloc(8); c.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000))); const h = crypto.createHmac('sha1', b32(secret)).update(c).digest(); const o = h[19] & 15; return String(((h.readUInt32BE(o) & 0x7fffffff) % 1e6)).padStart(6, '0'); };
+const b = await chromium.launch();
+const c = await b.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'dark', timezoneId: 'Asia/Seoul' });
+const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(String(e)));
+await p.request.post(B + '/auth/login', { data: { password: 'rsi-temp-test' } });
+const setup = await (await p.request.get(B + '/auth/totp/setup')).json();
+await p.request.post(B + '/auth/totp/verify', { data: { code: totp(setup.secret) } });
+await p.goto(`${B}/#/runs/st1/iter/3`); await p.waitForSelector('.eval-stages'); await p.waitForTimeout(800);
+await p.locator('.iteration-detail').screenshot({ path: 'out/d17_iter3.png' });
+await p.goto(`${B}/#/runs/st1/iter/4`); await p.waitForSelector('.eval-stages'); await p.waitForTimeout(800);
+await p.locator('.eval-stages').scrollIntoViewIfNeeded(); await p.locator('.iteration-detail').screenshot({ path: 'out/d17_iter4.png' });
+console.log('errors', errs); await b.close();

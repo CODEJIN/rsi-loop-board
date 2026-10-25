@@ -1,0 +1,56 @@
+# RSI Loop Phase 0 — Spec v1 (수기 작성)
+spec: astro-tonight-filter-speed
+version: 1
+project: Astro_Manager
+created: 2026-10-25
+
+workspace:
+  repo: /home/heejo/RSI_Loop/workspaces/astro      # 원본(~/Astro_Manager)의 독립 clone. 원본·운영 컨테이너는 건드리지 않음
+  best_branch: rsi/best                             # 채택된 변경이 쌓이는 브랜치
+  base_ref: main
+
+target:
+  type: code.performance
+  description: >
+    Tonight's Setup(딥스카이, 단일 대상 목록)에서 필터를 바꿀 때 화면이 다시 반응하기까지의 시간 단축.
+    기준 시나리오 S1 "집 베란다"(Seestar S30 Pro Telephoto, 성운·성단, 고도 0~55°, 화각 채움 30%~,
+    난이도 0~50, 방위 SE·S·SW).
+  editable_paths:
+    - frontend/src/**
+  protected_paths:            # 루프 에이전트가 접근할 수 없는 위치 (작업 디렉터리 밖)
+    - /home/heejo/RSI_Loop/bench/**
+    - /home/heejo/RSI_Loop/phase0/**
+
+metric:
+  harness: /home/heejo/RSI_Loop/bench/tonight.mjs    # Playwright, 외부 요청 차단, Date 고정 2026-11-15 21:00 KST
+  gates:
+    - name: build
+      pass: "vite build 성공"
+    - name: scope
+      pass: "변경 파일이 editable_paths 안에만 있음"
+    - name: snapshot
+      pass: "20개 조작 각각의 목록 텍스트(행 순서·내용)가 golden 스냅샷과 완전히 같음"
+    - name: no_page_errors
+      pass: "페이지 오류 0건, settle timeout 0건"
+  objective:
+    name: objective_total_wait_ms   # S1 세션에서 사용자가 기다리는 총 시간 = 20개 조작 settle 중앙값의 합
+    direction: minimize
+    rounds: 5
+    cpu_throttle: 1
+  accept_rule: "baseline 대비 개선폭이 잡음 기준(noise_threshold_ms)보다 클 때만 채택"
+  noise_threshold_ms: 100           # 2026-10-25 잡음 측정: 3회 표준편차 29.7ms(1.5%) → max(3σ, 5%) ≈ 100ms
+
+judge:
+  policy: auto-in-sandbox           # 루프 안에서는 gate+objective로 자동 채택 (격리된 clone 브랜치에만 반영)
+  final_merge: human                # 원본 저장소 병합·운영 배포는 사람이 검토 후 수동
+
+budget:
+  max_iterations: 5
+  agent_timeout_min: 20
+  stop_if_five_hour_utilization_gte: 0.80
+  stop_if_seven_day_utilization_gte: 0.70
+
+engine:
+  name: claude-code
+  flags: [--tools, "Read,Edit,Write,Glob,Grep", --permission-mode, acceptEdits,
+          --strict-mcp-config, --disable-slash-commands, --no-session-persistence]

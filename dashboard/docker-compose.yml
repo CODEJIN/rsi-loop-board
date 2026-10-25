@@ -1,0 +1,27 @@
+services:
+  dashboard:
+    container_name: rsi-loop
+    build: .
+    # 호스트 사용자와 같은 uid로 실행 — 마운트한 작업 저장소/데이터 파일 권한을 맞추기 위함
+    user: "${UID:-1000}:${GID:-1000}"
+    # Cloudflare Tunnel(cloudflared)이 호스트에서 localhost로 접속하므로 외부 인터페이스에는 열지 않습니다.
+    ports:
+      - "127.0.0.1:35004:8000"
+    volumes:
+      - ./data:/data/db:Z
+      - ../phase0/runs:/data/runs:ro,z
+      - ../phase0/specs:/data/specs:ro,z
+      - ../phase0/evals:/data/evals:ro,z   # 설계 화면의 '평가 스크립트 저장됨' 확인용
+      - ../workspaces:/home/heejo/RSI_Loop/workspaces:ro,z
+    # 실제 값은 .env에서 읽습니다(git 제외). 처음엔 .env.example을 .env로 복사하고 generate_hash.py로 채우세요.
+    environment:
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:35004}
+      - TZ=Asia/Seoul
+      - DB_PATH=/data/db/rsi.db
+      - RUNS_DIRS=/data/runs
+      - DEFAULT_REPO=/home/heejo/RSI_Loop/workspaces/astro   # 저장소 경로가 없는 예전 런 기록의 diff용
+    restart: unless-stopped

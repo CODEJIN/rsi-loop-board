@@ -1,0 +1,60 @@
+spec: astro-tonight-filter-speed
+version: 2
+title: Astro Manager · Tonight's Setup 필터 갱신 속도
+project: Astro_Manager
+note: v1(코드에 내장된 지시·평가)을 일반 Spec 형식으로 옮김
+
+workspace:
+  repo: /home/heejo/RSI_Loop/workspaces/astro   # 원본(~/Astro_Manager)의 독립 clone
+  best_branch: rsi/best
+  base_ref: main
+
+target:
+  type: code.performance
+  goal: Tonight's Setup(딥스카이 · 단일 대상 목록)에서 필터를 바꿀 때 화면이 다시 반응하기까지의 시간을 줄인다.
+  editable_paths:
+    - frontend/src/**
+
+agent:
+  instructions: |
+    - 화면에 보이는 결과(목록에 나오는 대상, 순서, 각 행의 텍스트)는 글자 하나도 바뀌면 안 된다. 변경 후 자동 비교로 검증한다.
+    - UI 디자인·문구·기능을 바꾸지 마라. 성능만 개선한다.
+    - 기존 코드의 주석 스타일(한국어, 이유를 설명하는 주석)과 이름 규칙을 따른다. 바꾼 부분에는 왜 바꿨는지 짧게 주석을 남긴다.
+  context: |
+    - 무거운 조작은 "시야 필터(방위·고도)가 처음 켜지는 순간"이다. 전체 목록(약 600행)에서 방위 하나를 끄거나 450행 상태에서
+      고도 상한을 처음 바꿀 때 메인 스레드가 막혔다. 카테고리 토글은 450행이어도 30ms 수준으로 빠르다.
+    - 2026-10-25 채택(e292b25): 행의 미니 고도 차트를 원시값 props만 받는 TonightPickAltitudeChart(React.memo)로 분리해
+      skyWindowMinutes 변화 시 Recharts 재렌더를 없앴다(2.04s → 0.49s). 이후 반복에서 useMemo로 행 조각을 묶는 시도와
+      ResponsiveContainer 제거는 개선폭이 잡음 수준(20~40ms)이었다.
+    - 참고: 태양 고도(sunAltitudeAtTime)는 모든 행에 공통인데 행마다 시간 격자 전체에 대해 다시 계산한다.
+  focus: frontend/src/App.jsx 를 중심으로 코드를 읽고, 가장 효과가 클 것으로 보이는 변경 하나를 적용하라.
+  tools: Read,Edit,Write,Glob,Grep
+  timeout_min: 20
+
+evaluation:
+  command: python3 evals/astro_tonight/eval.py     # phase0/ 기준 경로. --repo/--out/--label 인자를 붙여 실행
+  cleanup_command: python3 evals/astro_tonight/eval.py --cleanup
+  timeout_min: 30
+  description: |
+    Playwright 헤드리스 크롬에서 조작마다 "클릭 → 메인 스레드가 1.2초 동안 조용해질 때까지" 시간을 잰다(5라운드 중앙값).
+    조작 순서: 장비(Seestar S30 Pro Telephoto Lens/Camera) 선택 → 전체 목록에서 방위 N 끄기/켜기 →
+    카테고리 은하·기타 끄기 → 고도 최대 55 → 화각 채움 최소 30 → 난이도 최대 50 → 방위 N,NE,E,W,NW 끄기 →
+    SE 토글 → 고도 60/55 → 화각 50/30 → 성단 토글.
+    gate: 빌드 성공, 20개 조작의 목록 텍스트가 golden 스냅샷과 완전히 같음, 페이지 오류 없음.
+
+metric:
+  name: S1 세션 총 대기시간
+  unit: ms
+  direction: minimize
+  noise_threshold: 100      # 2026-10-25 잡음 측정: 표준편차 29.7ms(1.5%) → max(3σ, 5%)
+
+judge:
+  policy: auto              # auto | human | hybrid
+  hybrid:                   # policy가 hybrid일 때 사람 승인을 요청하는 조건
+    improvement_pct_gte: 30
+    diff_lines_gte: 200
+
+budget:
+  max_iterations: 5
+  stop_if_five_hour_utilization_gte: 0.80
+  stop_if_seven_day_utilization_gte: 0.70
